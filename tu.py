@@ -4,9 +4,11 @@ import matplotlib.pyplot as plt
 import sys
 from bs4 import BeautifulSoup
 
-FILES_TO_PROCESS = 10
+# CHANGE ME
+FILES_TO_PROCESS = 100
 
 # Init arrays for collecting scatter plot data
+things_of_interest = ['rent roll','appraisal','payment history']
 rrs = []
 apps = []
 phs = []
@@ -43,34 +45,36 @@ for root, dirs, files in os.walk("/Users/debajyotiroy/Ingest/Staging"):
 				try:
 					file_count += 1
 					# extract tables from html 
-					bs_table = BeautifulSoup(f.read(), "lxml").findAll('table')
+					bs_tables = BeautifulSoup(f.read(), "lxml").findAll('table')
+					for bs_table in bs_tables:
+						bs_table_string = str(bs_table)
+						if any(x in bs_table_string for x in things_of_interest):
+							# load html table as a DataFrame 
+							df = pandas.read_html(bs_table_string)
+							for table in df:
 
-					# load html table as a DataFrame 
-					df = pandas.read_html(str(bs_table))
-					for table in df:
+								# Init flags to detect table type
+								rr_flag = False
+								app_flag = False
+								ph_flag = False
 
-						# Init flags to detect table type
-						rr_flag = False
-						app_flag = False
-						ph_flag = False
+								for index, row in table.iterrows():
+									row_str = row.to_string().lower()
 
-						for index, row in table.iterrows():
-							row_str = row.to_string().lower()
+									rr_flag = match_name('rent roll', row_str, rr_flag)
+									app_flag = match_name('appraisal', row_str, app_flag)
+									ph_flag = match_name('payment history', row_str, ph_flag)
 
-							rr_flag = match_name('rent roll', row_str, rr_flag)
-							app_flag = match_name('appraisal', row_str, app_flag)
-							ph_flag = match_name('payment history', row_str, ph_flag)
+									if rr_flag and app_flag and ph_flag:
+										break
 
-							if rr_flag and app_flag and ph_flag:
-								break
-
-						# Append to the correct scatter plot data
-						if rr_flag:		
-							rrs.append(table.shape)
-						if app_flag:		
-							apps.append(table.shape)
-						if ph_flag:		
-							phs.append(table.shape)
+								# Append to the correct scatter plot data
+								if rr_flag:		
+									rrs.append(table.shape)
+								if app_flag:		
+									apps.append(table.shape)
+								if ph_flag:		
+									phs.append(table.shape)
 				except (ValueError):
 					error_count += 1
 					pass
