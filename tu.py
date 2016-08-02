@@ -5,7 +5,7 @@ import sys
 from bs4 import BeautifulSoup
 
 # CHANGE ME
-FILES_TO_PROCESS = 5000
+FILES_TO_PROCESS = 10000
 
 # Init arrays for collecting scatter plot data
 things_of_interest = ['rent roll','appraisal','payment history']
