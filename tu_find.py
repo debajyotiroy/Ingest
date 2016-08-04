@@ -5,7 +5,7 @@ import sys
 from bs4 import BeautifulSoup
 
 # CHANGE ME
-FILES_TO_PROCESS = 10000
+FILES_TO_PROCESS = 500
 
 # Init arrays for collecting scatter plot data
 thing_of_interest = sys.argv[1]
@@ -16,12 +16,12 @@ error_count = 0
 file_count = 0
 
 # If row contains name set the Flag to True
-def match_name( name, row_str, flag ):
-	# Don't check contains in row if flag is already true
+def match_name( name, cell_str, flag ):
+	# Don't check contains in cell if flag is already true
 	if flag:
 		return True
 	else:
-		if name in row_str:
+		if name in cell_str:
 			return True
 		else:
 			return False 
@@ -35,67 +35,72 @@ for root, dirs, files in os.walk("/Users/debajyotiroy/Ingest/Staging"):
 		if file_count >= FILES_TO_PROCESS:
 			break
 		# For a html file
-		if file.endswith(".html"):
+		if file.endswith(".html") or file.endswith(".htm"):
 			loc = os.path.join(root, file)
 			# Show progress
 			sys.stdout.write('|')
 			sys.stdout.flush()
 
 			with open(loc) as f:
-				try:
+				
 					file_count += 1
 					# extract tables from html 
 					bs_tables = BeautifulSoup(f.read(), "lxml").findAll('table')
 					for bs_table in bs_tables:
-						bs_table_string = str(bs_table)
-						if thing_of_interest in bs_table_string:
-							# load html table as a DataFrame 
-							df = pandas.read_html(bs_table_string)
-							for table in df:
+						try:
+							bs_table_string = str(bs_table).lower()
+							
+							if thing_of_interest in bs_table_string:
+								# load html table as a DataFrame 
+								df = pandas.read_html(bs_table_string)
 
-								# Init flags to detect table type
-								shape_flag = False
+								for table in df:
 
-								for index, row in table.iterrows():
-									row_str = row.to_string().lower()
+									# Init flags to detect table type
+									shape_flag = False
 
-									shape_flag = match_name(thing_of_interest, row_str, shape_flag)
+									for index, row in table.iterrows():
+										try:
+											for cell in row:
+												cell_str = str(cell)
+												shape_flag = match_name(thing_of_interest, cell_str, shape_flag)
 
-									if shape_flag:
-										break
+											if shape_flag:
+												break
+										except (ValueError):
+											pass
 
-								# Append to the correct scatter plot data
-								if shape_flag:		
-									shapes.append(table.shape)
-				except (ValueError):
-					error_count += 1
-					pass
+									# Append to the correct scatter plot data
+									if shape_flag:		
+										shapes.append(table.shape)
+						except (ValueError):
+							error_count += 1
 
 # Create plot arrays
-x_val = [x[0] for x in shapes]
-y_val = [x[1] for x in shapes]
+x_val = [x[1] for x in shapes]
+y_val = [x[0] for x in shapes]
 
 print('X')
 print("Files: {a:5d} , Errors : {b:5d}".format(a=file_count, b=error_count))
 
-fig = plt.figure(figsize=(32,10))
+fig = plt.figure(figsize=(32,4))
 
 # Scatter plot 
 ax0 = fig.add_subplot(131)
-ax0.scatter(x_val, y_val, s=10, c='b', marker="s", label=thing_of_interest)
-ax0.set_title(thing_of_interest+' - Shapes')
+ax0.scatter(x_val, y_val, s=10, c='b', marker="s", label='Rent Roll')
+ax0.set_title('Rent Roll - Shapes')
 ax0.set_xlabel('Rows')
 ax0.set_ylabel('Columns')
 
 # Histograms
 ax1 = fig.add_subplot(132)
 ax1.hist(y_val)
-ax1.set_title(thing_of_interest+' - Columns')
+ax1.set_title("Rent Roll - Columns")
 
 ax2 = fig.add_subplot(133)
 ax2.hist(x_val)
-ax2.set_title(thing_of_interest+' - Rows')
+ax2.set_title("Rent Roll - Rows")
 
 # Save and Show plot
-plt.savefig('tu_'+thing_of_interest+'.png')
+plt.savefig('tu.png')
 plt.show()

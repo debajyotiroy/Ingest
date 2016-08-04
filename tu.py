@@ -16,12 +16,12 @@ error_count = 0
 file_count = 0
 
 # If row contains name set the Flag to True
-def match_name( name, row_str, flag ):
-	# Don't check contains in row if flag is already true
+def match_name( name, cell_str, flag ):
+	# Don't check contains in cell if flag is already true
 	if flag:
 		return True
 	else:
-		if name in row_str:
+		if name in cell_str:
 			return True
 		else:
 			return False 
@@ -35,59 +35,66 @@ for root, dirs, files in os.walk("/Users/debajyotiroy/Ingest/Staging"):
 		if file_count >= FILES_TO_PROCESS:
 			break
 		# For a html file
-		if file.endswith(".html"):
+		if file.endswith(".html") or file.endswith(".htm"):
 			loc = os.path.join(root, file)
 			# Show progress
 			sys.stdout.write('|')
 			sys.stdout.flush()
 
 			with open(loc) as f:
-				try:
+				
 					file_count += 1
 					# extract tables from html 
 					bs_tables = BeautifulSoup(f.read(), "lxml").findAll('table')
 					for bs_table in bs_tables:
-						bs_table_string = str(bs_table)
-						if any(x in bs_table_string for x in things_of_interest):
-							# load html table as a DataFrame 
-							df = pandas.read_html(bs_table_string)
-							for table in df:
+						try:
+							bs_table_string = str(bs_table).lower()
+							
+							if any(x in bs_table_string for x in things_of_interest):
+								# load html table as a DataFrame 
+								df = pandas.read_html(bs_table_string)
 
-								# Init flags to detect table type
-								rr_flag = False
-								app_flag = False
-								ph_flag = False
+								for table in df:
+									try:
+										# Init flags to detect table type
+										rr_flag = False
+										app_flag = False
+										ph_flag = False
 
-								for index, row in table.iterrows():
-									row_str = row.to_string().lower()
+										for index, row in table.iterrows():
+											try:
+												for cell in row:
+													cell_str = str(cell)
+													rr_flag = match_name('rent roll', cell_str, rr_flag)
+													app_flag = match_name('appraisal', cell_str, app_flag)
+													ph_flag = match_name('payment history', cell_str, ph_flag)
 
-									rr_flag = match_name('rent roll', row_str, rr_flag)
-									app_flag = match_name('appraisal', row_str, app_flag)
-									ph_flag = match_name('payment history', row_str, ph_flag)
+												if rr_flag and app_flag and ph_flag:
+													break
+											except (ValueError):
+												pass
 
-									if rr_flag and app_flag and ph_flag:
-										break
-
-								# Append to the correct scatter plot data
-								if rr_flag:		
-									rrs.append(table.shape)
-								if app_flag:		
-									apps.append(table.shape)
-								if ph_flag:		
-									phs.append(table.shape)
-				except (ValueError):
-					error_count += 1
-					pass
+										# Append to the correct scatter plot data
+										if rr_flag:		
+											rrs.append(table.shape)
+										if app_flag:		
+											apps.append(table.shape)
+										if ph_flag:		
+											phs.append(table.shape)
+									except (ValueError):
+										pass
+						except (ValueError):
+							error_count += 1
 
 # Create plot arrays
-rr_x_val = [x[0] for x in rrs]
-rr_y_val = [x[1] for x in rrs]
+rr_x_val = [x[1] for x in rrs]
+rr_y_val = [x[0] for x in rrs]
 
-app_x_val = [x[0] for x in apps]
-app_y_val = [x[1] for x in apps]
+app_x_val = [x[1] for x in apps]
+app_y_val = [x[0] for x in apps]
 
-ph_x_val = [x[0] for x in phs]
-ph_y_val = [x[1] for x in phs]
+ph_x_val = [x[1] for x in phs]
+ph_y_val = [x[0] for x in phs]
 
 print('X')
 print("Files: {a:5d} , Errors : {b:5d}".format(a=file_count, b=error_count))
